@@ -4,6 +4,7 @@ import com.example.learning_project.model.Account;
 import com.example.learning_project.model.Transaction;
 import com.example.learning_project.repository.AccountRepository;
 import com.example.learning_project.repository.TransactionRepository;
+import com.example.learning_project.kafka.TransactionEventProducer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,10 @@ public class TransactionService {
 
     @Autowired
     private AccountRepository accountRepository;
+
+    @Autowired
+    private TransactionEventProducer transactionEventProducer;
+
 
     public Transaction createTransaction(Long fromId, Long toId, Transaction transaction) {
         Account fromAccount = accountRepository.findById(fromId)
@@ -47,7 +52,13 @@ public class TransactionService {
         accountRepository.save(fromAccount);
         accountRepository.save(toAccount);
 
-        return transactionRepository.save(transaction);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+        transactionEventProducer.sendTransactionEvent(
+                "Transaction ID " + savedTransaction.getId() + " - " + savedTransaction.getType() +
+                        " of " + savedTransaction.getAmount() + " from account " + fromId + " to " + toId
+        );
+
+        return savedTransaction;
     }
 
     public List<Transaction> getAllTransactions() {
